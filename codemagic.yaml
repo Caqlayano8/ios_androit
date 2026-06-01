@@ -29,6 +29,8 @@ workflows:
       vars:
         IOS_BUNDLE_ID: com.codegy.mergebridge
         IOS_EXPORT_METHOD: development
+      groups:
+        - mergebridge_ios_signing
     scripts:
       - name: Install signing files
         script: |
