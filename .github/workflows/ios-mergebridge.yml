@@ -55,6 +55,7 @@ jobs:
           test -n "${{ secrets.IOS_KEYCHAIN_PASSWORD }}"
           test -n "${{ secrets.IOS_TEAM_ID }}"
           test -n "${{ secrets.IOS_BUNDLE_ID }}"
+          test -n "${{ secrets.IOS_EXPORT_METHOD }}"
 
       - name: Install signing assets
         env:
@@ -76,8 +77,9 @@ jobs:
           security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 
+          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PP_PATH")")
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+          cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PP_UUID.mobileprovision"
 
       - name: Archive MergeBridge
         working-directory: ios/MergeBridge
@@ -92,8 +94,46 @@ jobs:
             PRODUCT_BUNDLE_IDENTIFIER="${{ secrets.IOS_BUNDLE_ID }}" \
             archive
 
+      - name: Export IPA
+        run: |
+          PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          PP_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" /dev/stdin <<< "$(security cms -D -i "$PP_PATH")")
+          EXPORT_OPTIONS="$RUNNER_TEMP/ExportOptions.plist"
+
+          cat > "$EXPORT_OPTIONS" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${{ secrets.IOS_EXPORT_METHOD }}</string>
+            <key>teamID</key>
+            <string>${{ secrets.IOS_TEAM_ID }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${{ secrets.IOS_BUNDLE_ID }}</key>
+              <string>$PP_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/MergeBridge.xcarchive" \
+            -exportOptionsPlist "$EXPORT_OPTIONS" \
+            -exportPath "$RUNNER_TEMP/ipa"
+
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: MergeBridge-xcarchive
           path: ${{ runner.temp }}/MergeBridge.xcarchive
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: MergeBridge-ipa
+          path: ${{ runner.temp }}/ipa/*.ipa

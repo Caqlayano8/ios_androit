@@ -24,12 +24,22 @@ Add these repository secrets:
 - `IOS_KEYCHAIN_PASSWORD`
 - `IOS_TEAM_ID`
 - `IOS_BUNDLE_ID`
+- `IOS_EXPORT_METHOD`
 
 Recommended bundle id:
 
 ```text
 com.codegy.mergebridge
 ```
+
+Recommended export method for direct device testing:
+
+```text
+development
+```
+
+Other Apple-supported values include `ad-hoc`, `app-store`, and `enterprise`,
+depending on your Apple Developer account and provisioning profile.
 
 ## Creating Base64 Secrets
 
@@ -49,10 +59,6 @@ Paste the copied values into GitHub repository secrets.
 3. Go to `Actions`.
 4. Run `iOS MergeBridge`.
 5. The simulator build should run automatically.
-6. The signed archive job runs only with `workflow_dispatch` and signing secrets.
-
-## Current Limitation
-
-The workflow uploads an `.xcarchive`. To generate a `.ipa`, add an
-`ExportOptions.plist` matching your Apple signing profile and call
-`xcodebuild -exportArchive`.
+6. The signed archive and `.ipa` export job runs only with `workflow_dispatch`
+   and signing secrets.
+7. Download `MergeBridge-ipa` from the workflow artifacts.
