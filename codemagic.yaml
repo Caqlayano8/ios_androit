@@ -1,0 +1,85 @@
+workflows:
+  mergebridge-ios-simulator:
+    name: MergeBridge iOS Simulator
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Build MergeBridge for iOS Simulator
+        script: |
+          cd ios/MergeBridge
+          xcodebuild \
+            -project MergeBridge.xcodeproj \
+            -scheme MergeBridge \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+    artifacts:
+      - /tmp/xcodebuild_logs/*.log
+
+  mergebridge-ios-ipa:
+    name: MergeBridge iOS IPA
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+      vars:
+        IOS_BUNDLE_ID: com.codegy.mergebridge
+        IOS_EXPORT_METHOD: development
+      groups:
+        - mergebridge_ios_signing
+    scripts:
+      - name: Install signing files
+        script: |
+          keychain initialize
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > /tmp/mergebridge_certificate.p12
+          echo "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > /tmp/mergebridge.mobileprovision
+          app-store-connect fetch-signing-files "$IOS_BUNDLE_ID" --type IOS_APP_DEVELOPMENT --create
+          keychain add-certificates --certificate /tmp/mergebridge_certificate.p12 --certificate-password "$IOS_CERTIFICATE_PASSWORD"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp /tmp/mergebridge.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/mergebridge.mobileprovision"
+      - name: Archive MergeBridge
+        script: |
+          cd ios/MergeBridge
+          xcodebuild \
+            -project MergeBridge.xcodeproj \
+            -scheme MergeBridge \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$CM_BUILD_DIR/build/MergeBridge.xcarchive" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" \
+            archive
+      - name: Export IPA
+        script: |
+          PP_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" /dev/stdin <<< "$(security cms -D -i /tmp/mergebridge.mobileprovision)")
+          cat > /tmp/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>$IOS_EXPORT_METHOD</string>
+            <key>teamID</key>
+            <string>$IOS_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$IOS_BUNDLE_ID</key>
+              <string>$PP_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$CM_BUILD_DIR/build/MergeBridge.xcarchive" \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath "$CM_BUILD_DIR/build/ipa"
+    artifacts:
+      - build/ipa/*.ipa
+      - build/MergeBridge.xcarchive
