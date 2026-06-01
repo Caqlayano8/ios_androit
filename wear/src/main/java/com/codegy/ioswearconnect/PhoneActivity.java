@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.Vibrator;
-import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.TextView;
 
@@ -43,17 +42,11 @@ public class PhoneActivity extends Activity {
         final String message = intent.getStringExtra(EXTRA_MESSAGE);
         callUID = intent.getByteArrayExtra(BLEService.INTENT_EXTRA_UID);
 
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
-            @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mCallerIdTextView = (TextView) stub.findViewById(R.id.callerIdTextView);
-                mMessageTextView = (TextView) stub.findViewById(R.id.messageTextView);
+        mCallerIdTextView = (TextView) findViewById(R.id.callerIdTextView);
+        mMessageTextView = (TextView) findViewById(R.id.messageTextView);
 
-                mCallerIdTextView.setText(callerId);
-                mMessageTextView.setText(message);
-            }
-        });
+        mCallerIdTextView.setText(callerId);
+        mMessageTextView.setText(message);
 
 
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);

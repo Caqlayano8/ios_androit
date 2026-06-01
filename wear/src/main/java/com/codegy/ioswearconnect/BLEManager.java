@@ -42,6 +42,7 @@ public class BLEManager {
         boolean shouldUpdateBatteryLevel();
         void onBatteryLevelChanged(int newBatteryLevel);
         void onMediaDataUpdated(byte[] packet, String attribute);
+        void onBridgePayloadReceived(String payload);
     }
 
 
@@ -234,7 +235,7 @@ public class BLEManager {
             BluetoothDevice device = result.getDevice();
 
             if (state == BLEManagerState.Scanning) {
-                if (device != null && device.getName() != null && (device.getName().equals("codegy.BLEConnect") || device.getName().equals("Blank") || device.getName().equals("BLE Utility"))) {
+                if (device != null && device.getName() != null && (device.getName().equals("codegy.BLEConnect") || device.getName().equals("Blank") || device.getName().equals("BLE Utility") || device.getName().equals("MergeBridge"))) {
                     cancelScanningTimeoutTask();
                     stopScanner();
 
@@ -319,6 +320,28 @@ public class BLEManager {
             Log.d(TAG_LOG, "onServicesDiscovered: " + status);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                if (gatt.getService(ServicesConstants.UUID_MERGE_BRIDGE) != null) {
+                    subscribeCharacteristic(gatt, ServicesConstants.UUID_MERGE_BRIDGE, ServicesConstants.CHARACTERISTIC_MERGE_BRIDGE_DATA);
+
+                    try {
+                        BluetoothGattCharacteristic characteristic = gatt.getService(ServicesConstants.UUID_MERGE_BRIDGE).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_MERGE_BRIDGE_DATA));
+                        if (characteristic != null) {
+                            gatt.readCharacteristic(characteristic);
+                        }
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    cancelConnectingTimeoutTask();
+                    setState(BLEManagerState.Ready);
+
+                    mScansFailed = 0;
+                    mConnectionsFailed = 0;
+                    mSilentReconnect = false;
+                    return;
+                }
+
                 subscribeCharacteristic(gatt, ServicesConstants.UUID_ANCS, ServicesConstants.CHARACTERISTIC_DATA_SOURCE);
 
                 scheduleConnectingTimeoutTask();
@@ -471,6 +494,11 @@ public class BLEManager {
                     Log.d(TAG_LOG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
                     mCallback.onBatteryLevelChanged(batteryLevel);
                 }
+                else if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_MERGE_BRIDGE_DATA)) {
+                    String payload = characteristic.getStringValue(0);
+                    Log.d(TAG_LOG, "MERGE  DATA:: " + payload);
+                    mCallback.onBridgePayloadReceived(payload);
+                }
                 else if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
                     String mediaTitle = characteristic.getStringValue(0);
                     Log.d(TAG_LOG, "AMS    Title:: " + mediaTitle);
@@ -484,6 +512,9 @@ public class BLEManager {
             byte[] packet = characteristic.getValue();
 
             switch (characteristic.getUuid().toString().toLowerCase()) {
+                case ServicesConstants.CHARACTERISTIC_MERGE_BRIDGE_DATA:
+                    mCallback.onBridgePayloadReceived(characteristic.getStringValue(0));
+                    break;
                 case ServicesConstants.CHARACTERISTIC_CURRENT_TIME:
                     Log.d(TAG_LOG, "CTS    CHARACTERISTIC_CURRENT_TIME:: " + characteristic.getStringValue(0));
 

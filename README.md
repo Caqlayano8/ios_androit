@@ -78,6 +78,11 @@ Contact me with any information regarding other watches.
 
 Getting Started
 ---------------
+### iPhone companion app
+An experimental iPhone-side app scaffold now lives in `ios/MergeBridge`.
+It is a SwiftUI/CoreBluetooth/HealthKit starting point for a real iPhone
+companion app. It must be opened and signed with Xcode on macOS.
+
 1. Install the app on your watch.
 2. Install [LightBlue](https://itunes.apple.com/app/id557428110) on your iOS device.
 3. Launch LightBlue and create a "New Virtual Peripheral" from the "Blank" template.

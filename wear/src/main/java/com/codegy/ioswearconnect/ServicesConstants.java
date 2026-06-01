@@ -75,4 +75,9 @@ public class ServicesConstants {
     public static final UUID UUID_CTS = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb");
     public static final String CHARACTERISTIC_CURRENT_TIME = "00002a2b-0000-1000-8000-00805f9b34fb";
 
+
+    // MergeBridge - iPhone companion app custom service
+    public static final UUID UUID_MERGE_BRIDGE = UUID.fromString("4d455247-452d-4252-4944-474530303001");
+    public static final String CHARACTERISTIC_MERGE_BRIDGE_DATA = "4d455247-452d-4252-4944-474530303002";
+
 }

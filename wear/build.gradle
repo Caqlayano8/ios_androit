@@ -8,7 +8,7 @@ android {
         //applicationId "com.codegy.ioswearconnect"
         applicationId "com.codegy.wearconnectforios"
         minSdkVersion 21
-        targetSdkVersion 22
+        targetSdkVersion 23
         versionCode 8
         versionName "1.6"
     }
@@ -24,6 +24,4 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.google.android.support:wearable:1.1.0'
-    compile 'com.google.android.gms:play-services-wearable:7.0.0'
 }

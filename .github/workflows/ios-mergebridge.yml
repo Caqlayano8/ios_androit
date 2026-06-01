@@ -1,0 +1,99 @@
+name: iOS MergeBridge
+
+on:
+  push:
+    paths:
+      - "ios/MergeBridge/**"
+      - ".github/workflows/ios-mergebridge.yml"
+  pull_request:
+    paths:
+      - "ios/MergeBridge/**"
+      - ".github/workflows/ios-mergebridge.yml"
+  workflow_dispatch:
+
+jobs:
+  simulator-build:
+    name: Build iOS app on simulator
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build MergeBridge
+        working-directory: ios/MergeBridge
+        run: |
+          xcodebuild \
+            -project MergeBridge.xcodeproj \
+            -scheme MergeBridge \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+  signed-archive:
+    name: Signed archive for iPhone
+    runs-on: macos-15
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Validate signing secrets
+        run: |
+          test -n "${{ secrets.IOS_CERTIFICATE_BASE64 }}"
+          test -n "${{ secrets.IOS_CERTIFICATE_PASSWORD }}"
+          test -n "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}"
+          test -n "${{ secrets.IOS_KEYCHAIN_PASSWORD }}"
+          test -n "${{ secrets.IOS_TEAM_ID }}"
+          test -n "${{ secrets.IOS_BUNDLE_ID }}"
+
+      - name: Install signing assets
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo -n "$IOS_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+
+          security create-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+
+      - name: Archive MergeBridge
+        working-directory: ios/MergeBridge
+        run: |
+          xcodebuild \
+            -project MergeBridge.xcodeproj \
+            -scheme MergeBridge \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/MergeBridge.xcarchive" \
+            DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+            PRODUCT_BUNDLE_IDENTIFIER="${{ secrets.IOS_BUNDLE_ID }}" \
+            archive
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: MergeBridge-xcarchive
+          path: ${{ runner.temp }}/MergeBridge.xcarchive

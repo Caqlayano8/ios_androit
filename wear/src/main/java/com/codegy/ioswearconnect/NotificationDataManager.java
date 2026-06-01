@@ -10,6 +10,10 @@ public class NotificationDataManager {
     public static void updateData(NotificationData notificationData) {
         boolean messageApp = false;
 
+        if (notificationData == null || notificationData.getAppId() == null) {
+            return;
+        }
+
         switch (notificationData.getAppId()) {
             case "com.apple.mobilephone":
                 notificationData.setAppIcon(R.drawable.ic_phone);
@@ -34,6 +38,34 @@ public class NotificationDataManager {
             case "com.apple.mobilecal":
                 notificationData.setAppIcon(R.drawable.ic_calendar);
                 notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+
+                break;
+            case "com.apple.Health":
+            case "com.apple.HealthKit":
+            case "com.apple.HealthRecords":
+                notificationData.setAppIcon(R.drawable.ic_health);
+                notificationData.setBackgroundColor(Color.rgb(255, 59, 72));
+
+                break;
+            case "com.apple.Fitness":
+            case "com.apple.Activity":
+            case "com.apple.NanoFitness":
+            case "com.apple.SessionTrackerApp":
+                notificationData.setAppIcon(R.drawable.ic_workout);
+                notificationData.setBackgroundColor(Color.rgb(0, 122, 255));
+
+                break;
+            case "com.apple.findmy":
+            case "com.apple.findmy.findpeople":
+            case "com.apple.findmy.finddevices":
+                notificationData.setAppIcon(R.drawable.ic_find_my);
+                notificationData.setBackgroundColor(Color.rgb(48, 176, 170));
+
+                break;
+            case "com.apple.MobileAddressBook":
+            case "com.apple.Contacts":
+                notificationData.setAppIcon(R.drawable.ic_phone);
+                notificationData.setBackgroundColor(Color.rgb(192, 144, 101));
 
                 break;
             case "com.google.Gmail":
@@ -121,6 +153,10 @@ public class NotificationDataManager {
         }
 
         if (messageApp) {
+            if (notificationData.getMessage() == null) {
+                return;
+            }
+
             int index = notificationData.getMessage().indexOf(": ");
             if (index > 0) {
                 String title = notificationData.getMessage().substring(0, index);

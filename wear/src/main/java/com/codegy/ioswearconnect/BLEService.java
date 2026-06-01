@@ -14,6 +14,8 @@ import android.os.*;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import org.json.JSONObject;
+
 
 /**
  * Created by codegy on 15/03/15.
@@ -459,6 +461,47 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         }
         catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onBridgePayloadReceived(String payload) {
+        if (payload == null || payload.length() == 0) {
+            return;
+        }
+
+        try {
+            JSONObject jsonObject = new JSONObject(payload);
+            String kind = jsonObject.optString("kind", "MergeBridge");
+            JSONObject body = jsonObject.optJSONObject("body");
+            StringBuilder message = new StringBuilder();
+
+            if (body != null) {
+                if (body.has("steps")) {
+                    message.append("Steps: ").append(body.optString("steps"));
+                }
+                if (body.has("active_energy_kcal")) {
+                    if (message.length() > 0) {
+                        message.append("\n");
+                    }
+                    message.append("Active energy: ").append(body.optString("active_energy_kcal")).append(" kcal");
+                }
+            }
+
+            if (message.length() == 0) {
+                message.append(payload);
+            }
+
+            Notification.Builder builder = new Notification.Builder(this)
+                    .setSmallIcon(R.drawable.ic_health)
+                    .setContentTitle(kind)
+                    .setContentText(message.toString())
+                    .setPriority(Notification.PRIORITY_HIGH);
+
+            notificationManager.notify("merge_bridge", NOTIFICATION_REGULAR, builder.build());
+        }
+        catch (Exception e) {
+            Log.w(TAG_LOG, "Unable to parse MergeBridge payload", e);
         }
     }
 
